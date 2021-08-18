@@ -13,11 +13,11 @@
 #include <vector>
 
 // particle parameters
-const double THETAW = 300.;                             // |    K    |  temperature at the wall
-const double THETA0 = 300.;                             // |    K    |  initial temperature
+const float THETAW = 300.;                              // |    K    |  temperature at the wall
+const float THETA0 = 300.;                              // |    K    |  initial temperature
 const double I0 = 2 * pow(10, 8);         // |  W/m^2  |  initial laser intensity
-const double ABSORB = 25.0;                             // |   1/m   |  absorption constant
-const double LENGTH = 0.05;                             // |    m    |  sample length
+const float ABSORB = 25.0;                              // |   1/m   |  absorption constant
+const float LENGTH = 0.05;                              // |    m    |  sample length
 const int NODE = 21;                                    // |   ___   |  number of nodes
 
 // material parameters
@@ -31,7 +31,7 @@ const double RPART = LENGTH / 10.;                      // |    m    |  radius o
 const double TF = 2.;                                   // |    s    |  final simulation time
 const double DT = pow(10, -4);            // |    s    |  initial time step
 
-const int SIZEA3 = (int) pow(NODE, 3);
+const int SIZEA3 = (int) pow(NODE, 3);           // try static_cast
 const int SIZEA2 = (int) pow(NODE, 2);
 
 // data outputs
@@ -67,7 +67,6 @@ int main(){
     computeBoundary(bNodes);
     computeAsparse(ASparse);
 
-
     return 0;
 }
 
@@ -87,7 +86,7 @@ void computeCoord(std::vector<std::vector< double>> &cubeCoord){
     auto start = std::chrono::high_resolution_clock::now();
 
     // populate vectors x-y-z
-    for (int i=0; i<NODE; i+=1){
+    for (int i = 0; i < NODE; i +=1 ){
         xyz.push_back(coordDist);
         coordDist += h;
     }
@@ -126,18 +125,18 @@ void computeBoundary(std::vector< std::vector<double> >& bNodes){
     std::vector<double> wallBoundary;
 
     int counter = 0;
-    for (int i=0; i<NODE; i++){
-        for (int j=0; j<NODE; j++){
-            for (int k=0; k<NODE; k++){
-                if (i==0){
+    for (int i = 0; i < NODE; i++){
+        for (int j = 0; j < NODE; j++){
+            for (int k = 0; k < NODE; k++){
+                if (i == 0){
                     bottomBoundary.push_back(counter);
                     bottomBoundary_h.push_back(counter + pow(NODE, 2.0));
                 }
-                if (i==NODE-1){
+                if (i == NODE - 1){
                     topBoundary.push_back(counter);
                     topBoundary_h.push_back(counter);
                 }
-                if (j==0 or j==NODE-1 or k==0 or k==NODE-1){
+                if (j == 0 or j == NODE - 1 or k == 0 or k == NODE - 1){
                     wallBoundary.push_back(counter);
                 }
                 counter++;
@@ -159,16 +158,16 @@ void computeAsparse(std::vector< std::vector<int> >& ASparse){
     auto start = std::chrono::high_resolution_clock::now();
 
     int node = 0;
-    for (int i=0; i<SIZEA3; i++){
+    for (int i = 0; i < SIZEA3; i++){
         if (SIZEA2 < i < (SIZEA3 - SIZEA2)){
             std::vector<int> tempVec;
-            for (int j=0; j<SIZEA3; j++){
+            for (int j = 0; j < SIZEA3; j++){
                 if ((j == i - SIZEA2) or (j == i - NODE) or (j == i - 1)){
                     tempVec.push_back(node);
                     tempVec.push_back(i);
                     tempVec.push_back(j);
                     tempVec.push_back(1);
-                }else if (j==i){
+                }else if (j == i){
                     tempVec.push_back(node);
                     tempVec.push_back(i);
                     tempVec.push_back(j);
@@ -188,7 +187,7 @@ void computeAsparse(std::vector< std::vector<int> >& ASparse){
         }
     }
 
-    auto stop = std::chrono::high_resolution_clock::now();
+    auto stop std::chrono::high_resolution_clock::now()= ;
     auto duration = (std::chrono::duration_cast<std::chrono::microseconds>(stop - start)).count() / 1e6;
     std::cout << "computational time: " << duration << "s" << std::endl;
 }
