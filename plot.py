@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 
 # import data
-df = pd.read_csv("voxel3.dat", sep='\t')
+# df = pd.read_csv("voxel3.dat", sep='\t')
+df = pd.read_csv("state.dat", sep=' ')
 data = np.asarray(df.values)
 xPos = data[:, 0]
 yPos = data[:, 1]
