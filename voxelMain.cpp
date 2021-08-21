@@ -67,12 +67,6 @@ void computeParticles(std::vector< std::vector<double> >&,
 // computeParticles - compute random particles within the medium of material
 // @param - modifies 2D vector and filles with particles
 
-void computeLaser(std::vector< std::vector<double> >&,
-                  double[SIZEA3]);
-// computeLaser - assigns energy values to each node corresponding to Beer-Lambert
-// @param - cubeCoord, the physical length values assigned to each node
-// @param - laserValues, empty array to be updated.
-
 void solutionScheme(std::vector< std::vector<int> >&,
                     std::vector< std::vector<int> >&,
                     std::vector< std::vector<double> >&,
@@ -131,23 +125,29 @@ int main(){
     std::vector< std::vector<double> > temperature;             // store temperature all time steps
     std::vector<double> theta(SIZEA3, THETA0);                  // store temperature for individual time steps
 
-    // compute laser profile
-    double laserValues[SIZEA3];
-    std::fill_n(laserValues, SIZEA3, RHO0M);
-    computeLaser(cubeCoord, laserValues);
-
     // compute necessary matrices
     computeCoord(cubeCoord);                // compute the x-y-z coordinates
     computeBoundary(bNodes);                // find the boundary nodes
     computeAsparse(ASparse, bNodes);     // compute FDM mesh A matrix
+
+    // compute laser profile
+    double laserValues[SIZEA3];
+    std::fill_n(laserValues, SIZEA3, 0.);
+    std::cout << "test: " << cubeCoord[0][1] << std::endl;
+    for (int i = 0; i < SIZEA3; i++){
+        if (0.02 <= cubeCoord[i][1] <= 0.03 and 0.02 <= cubeCoord[i][2] <= 0.03){
+            laserValues[i] = ABSORB * I0 * exp(-ABSORB * (LENGTH - cubeCoord[i][3]));
+            std::cout << "laserValue: " << laserValues[i] << std::endl;
+        }
+    }
 
     // compute the random particles embedded in the material
     computeParticles(cubeCoord, particlesInd, particlesInterInd,
                      density, heatCap, thermCond);
 
 
-//    solutionScheme(ASparse, bNodes, temperature, theta,
-//                   density, heatCap, thermCond, laserValues);
+    solutionScheme(ASparse, bNodes, temperature, theta,
+                   density, heatCap, thermCond, laserValues);
 
 
 //    write2file(cubeCoord, density); // write initial density result to output file
@@ -366,11 +366,6 @@ void computeParticles(std::vector< std::vector<double> >& cubeCoord,
     }
 }
 
-void computeLaser(std::vector< std::vector<double> >& cubeCoord,
-                  double laserValues[SIZEA3]){
-    std::cout << "test cubeCoord: " << cubeCoord[0][1] << std::endl;
-    std::cout << "test laserValue: " << laserValues[0] << std::endl;
-}
 
 void solutionScheme(std::vector< std::vector<int> >& ASparse,
                     std::vector< std::vector<int> >& bNodes,
