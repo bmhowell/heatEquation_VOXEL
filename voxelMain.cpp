@@ -15,10 +15,10 @@
 // particle parameters
 const float THETAW = 300.;                              // |    K    |  temperature at the wall
 const float THETA0 = 300.;                              // |    K    |  initial temperature
-const double I0 = 2 * pow(10, 8);         // |  W/m^2  |  initial laser intensity
+const double I0 = 2. * pow(10, 8);        // |  W/m^2  |  initial laser intensity
 const float ABSORB = 25.0;                              // |   1/m   |  absorption constant
 const float LENGTH = 0.05;                              // |    m    |  sample length
-const int NODE = 7;                                    // |   ___   |  number of nodes
+const int NODE = 21;                                    // |   ___   |  number of nodes
 const double INTTHICK = 1.0;                            // |   ---   |  interfacial thickness parameter
 
 // material parameters
@@ -28,7 +28,7 @@ const int CP = 5;                                       // | J/kg-K  |  heat cap
 const int CM = 450;                                     // | J/kg-K  |  heat capacity
 const int RHO0P = 6500;                                 // | kg/m^3  |  initial particle density
 const int RHO0M = 3000;                                 // | kg/m^3  |  initial material density
-const double VP = 0.5;                                  // |   ---   |  volume fraction of particles
+const double VP = 0.3;                                  // |   ---   |  volume fraction of particles
 const double RPART = LENGTH / 10.;                      // |    m    |  radius of the particles
 
 // simulation parameters
@@ -67,6 +67,11 @@ void computeParticles(std::vector< std::vector<double> >&,
 // computeParticles - compute random particles within the medium of material
 // @param - modifies 2D vector and filles with particles
 
+void laserProfile(std::vector< std::vector<double> >&, double[SIZEA3]);
+// laserProfile: assigns energy values for each node from the laser
+// @param - cubeCoord: cube coordinates for the mesh
+// @param - laserValues: values of energy for each node
+
 void solutionScheme(std::vector< std::vector<int> >&,
                     std::vector< std::vector<int> >&,
                     std::vector< std::vector<double> >&,
@@ -89,14 +94,17 @@ void write2file(std::vector< std::vector<double> >&,
 // @param - cube coordinates [nParticles x 4] -> [node, x, y, z]
 // @param - density [nParticles x 1]
 
-void uniqueVec(std::vector<int> &vec);
+void uniqueVec(std::vector<int> &);
 // uniqueVec - modifies input vector to only contain unique indices
+// @param - vec: vector to be passed in
 
 void print2dVecInt(std::vector< std::vector<int> >&);
 // print2dVec - prints 2D vector
+// @param - vec: vector to be passed in
 
 void print2dVecDouble(std::vector< std::vector<double> >&);
 // print2dVec - prints 2D vector
+// @param - vec: vector to be passed in
 
 int main(){
     // initialize time
@@ -126,20 +134,14 @@ int main(){
     std::vector<double> theta(SIZEA3, THETA0);                  // store temperature for individual time steps
 
     // compute necessary matrices
-    computeCoord(cubeCoord);                // compute the x-y-z coordinates
-    computeBoundary(bNodes);                // find the boundary nodes
-    computeAsparse(ASparse, bNodes);     // compute FDM mesh A matrix
+    computeCoord(cubeCoord);                                // compute the x-y-z coordinates
+    computeBoundary(bNodes);                                // find the boundary nodes
+    computeAsparse(ASparse, bNodes);                    // compute FDM mesh A matrix
 
     // compute laser profile
     double laserValues[SIZEA3];
     std::fill_n(laserValues, SIZEA3, 0.);
-    std::cout << "test: " << cubeCoord[0][1] << std::endl;
-    for (int i = 0; i < SIZEA3; i++){
-        if (0.02 <= cubeCoord[i][1] <= 0.03 and 0.02 <= cubeCoord[i][2] <= 0.03){
-            laserValues[i] = ABSORB * I0 * exp(-ABSORB * (LENGTH - cubeCoord[i][3]));
-            std::cout << "laserValue: " << laserValues[i] << std::endl;
-        }
-    }
+    laserProfile(cubeCoord, laserValues);
 
     // compute the random particles embedded in the material
     computeParticles(cubeCoord, particlesInd, particlesInterInd,
@@ -258,31 +260,33 @@ void computeAsparse(std::vector< std::vector<int> >& ASparse,
 
 //    int element = 0;
     for (int i = 0; i < SIZEA3; i++){
-        if (SIZEA2 < i < (SIZEA3 - SIZEA2)){
+        if (SIZEA2 < i and i < SIZEA3) {
             std::vector<int> tempVec;
-            for (int j = 0; j < SIZEA3; j++){
-                if ((j == i - SIZEA2) or (j == i - NODE) or (j == i - 1)){
+            for (int j = 0; j < SIZEA3; j++) {
+                if ((j == i - SIZEA2) or (j == i - NODE) or (j == i - 1)) {
 //                    tempVec.push_back(element);
                     tempVec.push_back(i);
                     tempVec.push_back(j);
                     tempVec.push_back(1);
-                }else if (j == i){
+                } else if (j == i) {
 //                    tempVec.push_back(element);
                     tempVec.push_back(i);
                     tempVec.push_back(j);
                     tempVec.push_back(-6);
-                }else if((j == i + 1) or (j == i + NODE) or (j == i + SIZEA2)){
+                } else if ((j == i + 1) or (j == i + NODE) or (j == i + SIZEA2)) {
 //                    tempVec.push_back(element);
                     tempVec.push_back(i);
                     tempVec.push_back(j);
                     tempVec.push_back(1);
-                }else{
-//                    element++;
+                } else {
                     continue;
                 }
                 ASparse.push_back(tempVec);
                 tempVec.clear();
+//                element++;
             }
+        }else{
+            continue;
         }
     }
 
@@ -292,7 +296,11 @@ void computeAsparse(std::vector< std::vector<int> >& ASparse,
      * ASparse[node][3] equal to zero
      */
     for (int i = 0; i < bNodes[4].size(); i++){
-        ASparse[bNodes[4][i]][3] = 0;
+        for(int j = 0; j < ASparse.size(); j++) {
+            if (ASparse[j][0] == bNodes[4][i]) {
+                ASparse[j][2] = 0;
+            }
+        }
     }
 
     auto stop = std::chrono::high_resolution_clock::now();
@@ -366,6 +374,14 @@ void computeParticles(std::vector< std::vector<double> >& cubeCoord,
     }
 }
 
+void laserProfile(std::vector< std::vector<double> >& cubeCoord,
+                  double laserValues[SIZEA3]){
+    for (int i = 0; i < SIZEA3; i++){
+        if (0.02 <= cubeCoord[i][1] and cubeCoord[i][1] <= 0.03 and 0.02 <= cubeCoord[i][2] and cubeCoord[i][2] <= 0.03){
+            laserValues[i] = ABSORB * I0 * exp(-ABSORB * (LENGTH - cubeCoord[i][3]));
+        }
+    }
+}
 
 void solutionScheme(std::vector< std::vector<int> >& ASparse,
                     std::vector< std::vector<int> >& bNodes,
@@ -373,13 +389,20 @@ void solutionScheme(std::vector< std::vector<int> >& ASparse,
                     std::vector<double>& theta,
                     double density[SIZEA3], double heatCap[SIZEA3],
                     double thermCond[SIZEA3], double laserValues[SIZEA3]){
+    // start timer
+    auto start = std::chrono::high_resolution_clock::now();
 
     // begin time stepping
-    double prefix1, prefix2;
+    double prefix1, prefix2, averageTemp;
     int row, col, val;
     int nnz = ASparse.size();
+
     for (int t = 0; t < SIZETIME; t++){
-        std::cout << "time: " << t << std::endl;
+        // std::cout output information
+        averageTemp = std::accumulate(theta.begin(), theta.end(), 0.0) / theta.size();
+        std::cout << "time: " << t + 1 << " / " << SIZETIME;
+        std::cout << " -> average temperature: " << averageTemp << std::endl;
+
         // coordinate-wise sparse-matrix-vector multiplication
         // http://www.mathcs.emory.edu/~cheung/Courses/561/Syllabus/3-C/sparse.html
         double AtimesTheta[SIZEA3];
@@ -415,7 +438,9 @@ void solutionScheme(std::vector< std::vector<int> >& ASparse,
             continue;
         }
     }
-
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = (std::chrono::duration_cast<std::chrono::microseconds>(stop - start)).count() / 1e6;
+    std::cout << "simulation time: " << duration << "s" << std::endl;
 }
 
 void write2file(std::vector< std::vector<double> > &cubeCoord,
