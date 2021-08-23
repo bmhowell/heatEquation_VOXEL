@@ -15,19 +15,19 @@
 // particle parameters
 const float THETAW = 300.;                              // |    K    |  temperature at the wall
 const float THETA0 = 300.;                              // |    K    |  initial temperature
-const double I0 = 2. * pow(10, 8);        // |  W/m^2  |  initial laser intensity
+const double I0 = 2. * pow(10, 7);        // |  W/m^2  |  initial laser intensity
 const float ABSORB = 25.0;                              // |   1/m   |  absorption constant
 const float LENGTH = 0.05;                              // |    m    |  sample length
-const int NODE = 21;                                    // |   ___   |  number of nodes
+const int NODE = 31;                                    // |   ___   |  number of nodes
 const double INTTHICK = 1.0;                            // |   ---   |  interfacial thickness parameter
 
 // material parameters
-const int KP = 10;                                      // |  W/m-K  |  thermal conductivity of particle
-const int KM = 135;                                     // |  W/m-K  |  thermal conductivity of material
-const int CP = 5;                                       // | J/kg-K  |  heat capacity of particle
-const int CM = 450;                                     // | J/kg-K  |  heat capacity
-const int RHO0P = 6500;                                 // | kg/m^3  |  initial particle density
-const int RHO0M = 3000;                                 // | kg/m^3  |  initial material density
+const int KP = 903; //85;                                      // |  W/m-K  |  thermal conductivity of particle
+const int KM = 1;                                       // |  W/m-K  |  thermal conductivity of material
+const int CP = 903;                                     // | J/kg-K  |  heat capacity of particle
+const int CM = 156;                                     // | J/kg-K  |  heat capacity
+const int RHO0P = 2700;                                 // | kg/m^3  |  initial particle density
+const int RHO0M = 1000;                                 // | kg/m^3  |  initial material density
 const double VP = 0.3;                                  // |   ---   |  volume fraction of particles
 const double RPART = LENGTH / 10.;                      // |    m    |  radius of the particles
 
@@ -40,7 +40,8 @@ const int SIZEA3 = (int) pow(NODE, 3);           // try static_cast
 const int SIZEA2 = (int) pow(NODE, 2);
 
 // data outputs
-std::ofstream printState;
+std::ofstream printDensity;
+std::ofstream printTemp;
 
 // function declarations
 void computeCoord(std::vector< std::vector<double> >&);
@@ -88,8 +89,18 @@ void solutionScheme(std::vector< std::vector<int> >&,
 // @param - thermCond: array for thermal conductivity
 // @param - laserValues: energy input from laser at each node
 
-void write2file(std::vector< std::vector<double> >&,
-                double density[SIZEA3]);
+void temp2file(std::vector< std::vector<double> >&,
+               std::vector< std::vector<double> >&);
+// temp2file - write temperature results from all timesteps to file
+// @param - cube coordinates [nParticles][node, x, y, z]
+// @param - temperature [timesteps x 1][nParticlesTemp]
+
+void lastTemp2file(std::vector< std::vector<double> >&,
+                   std::vector<double>&);
+
+void density2file(std::vector< std::vector<double> >&,
+                  double density[SIZEA3], double[SIZEA3],
+                  double[SIZEA3]);
 // write2file - write cube coordinates and density to file for plotting
 // @param - cube coordinates [nParticles x 4] -> [node, x, y, z]
 // @param - density [nParticles x 1]
@@ -107,6 +118,8 @@ void print2dVecDouble(std::vector< std::vector<double> >&);
 // @param - vec: vector to be passed in
 
 int main(){
+    std::cout << "total timesteps: " << SIZETIME << std::endl;
+    std::cout << "final time " << TF << "s" << std::endl;
     // initialize time
     double time[SIZETIME];
     double counter = 0.0;
@@ -126,8 +139,8 @@ int main(){
     double heatCap[SIZEA3];
     double thermCond[SIZEA3];
     std::fill_n(density, SIZEA3, RHO0M);
-    std::fill_n(heatCap, SIZEA3, KM);
-    std::fill_n(thermCond, SIZEA3, CM);
+    std::fill_n(heatCap, SIZEA3, CM);
+    std::fill_n(thermCond, SIZEA3, KM);
 
     // initialize temperature
     std::vector< std::vector<double> > temperature;             // store temperature all time steps
@@ -138,10 +151,13 @@ int main(){
     computeBoundary(bNodes);                                // find the boundary nodes
     computeAsparse(ASparse, bNodes);                    // compute FDM mesh A matrix
 
+
+
     // compute laser profile
     double laserValues[SIZEA3];
     std::fill_n(laserValues, SIZEA3, 0.);
     laserProfile(cubeCoord, laserValues);
+
 
     // compute the random particles embedded in the material
     computeParticles(cubeCoord, particlesInd, particlesInterInd,
@@ -151,9 +167,8 @@ int main(){
     solutionScheme(ASparse, bNodes, temperature, theta,
                    density, heatCap, thermCond, laserValues);
 
-
-//    write2file(cubeCoord, density); // write initial density result to output file
-
+    density2file(cubeCoord, density, heatCap, thermCond); // write initial density result to output file
+    lastTemp2file(cubeCoord, theta);
 
     return 0;
 }
@@ -177,7 +192,10 @@ void computeCoord(std::vector<std::vector< double>> &cubeCoord){
 
     // populate vectors x-y-z
     for (int i = 0; i < NODE; i +=1 ){
-        xyz.push_back(coordDist);
+//        xyz.push_back(coordDist);
+        x.push_back(coordDist);
+        y.push_back(coordDist);
+        z.push_back(coordDist);
         coordDist += H;
     }
 
@@ -188,9 +206,9 @@ void computeCoord(std::vector<std::vector< double>> &cubeCoord){
             std::vector<double> temp;
             for (int k=0; k<NODE; k++){
                 temp.push_back(counter);
-                temp.push_back(xyz[k]);
-                temp.push_back(xyz[j]);
-                temp.push_back(xyz[i]);
+                temp.push_back(x[k]);
+                temp.push_back(y[j]);
+                temp.push_back(z[i]);
 //                std::cout << xyz[k] << " " << xyz[j]  << " " << xyz[i] << std::endl;
                 counter++;
                 cubeCoord.push_back(temp);
@@ -258,23 +276,19 @@ void computeAsparse(std::vector< std::vector<int> >& ASparse,
     std::cout << "--- Constructing A sparse array ---" << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
 
-//    int element = 0;
     for (int i = 0; i < SIZEA3; i++){
         if (SIZEA2 < i and i < SIZEA3) {
             std::vector<int> tempVec;
             for (int j = 0; j < SIZEA3; j++) {
                 if ((j == i - SIZEA2) or (j == i - NODE) or (j == i - 1)) {
-//                    tempVec.push_back(element);
                     tempVec.push_back(i);
                     tempVec.push_back(j);
                     tempVec.push_back(1);
                 } else if (j == i) {
-//                    tempVec.push_back(element);
                     tempVec.push_back(i);
                     tempVec.push_back(j);
                     tempVec.push_back(-6);
                 } else if ((j == i + 1) or (j == i + NODE) or (j == i + SIZEA2)) {
-//                    tempVec.push_back(element);
                     tempVec.push_back(i);
                     tempVec.push_back(j);
                     tempVec.push_back(1);
@@ -283,7 +297,6 @@ void computeAsparse(std::vector< std::vector<int> >& ASparse,
                 }
                 ASparse.push_back(tempVec);
                 tempVec.clear();
-//                element++;
             }
         }else{
             continue;
@@ -377,7 +390,8 @@ void computeParticles(std::vector< std::vector<double> >& cubeCoord,
 void laserProfile(std::vector< std::vector<double> >& cubeCoord,
                   double laserValues[SIZEA3]){
     for (int i = 0; i < SIZEA3; i++){
-        if (0.02 <= cubeCoord[i][1] and cubeCoord[i][1] <= 0.03 and 0.02 <= cubeCoord[i][2] and cubeCoord[i][2] <= 0.03){
+//        std::cout << "x: " << cubeCoord[i][1] << " y: " << cubeCoord[i][2] << std::endl;
+        if (0.0199 <= cubeCoord[i][1] and cubeCoord[i][1] <= 0.0301 and 0.0199 <= cubeCoord[i][2] and cubeCoord[i][2] <= 0.0301){
             laserValues[i] = ABSORB * I0 * exp(-ABSORB * (LENGTH - cubeCoord[i][3]));
         }
     }
@@ -416,9 +430,8 @@ void solutionScheme(std::vector< std::vector<int> >& ASparse,
 
         // using solve for temperatures at the next time step
         for (int j = 0; j < SIZEA3; j++){
-            prefix1 = DT / density[j] / heatCap[j];
-            prefix2 = thermCond[j] / pow(H, 2.0);
-            theta[j] = theta[j] + prefix1 * (prefix2 * AtimesTheta[j] + laserValues[j]);
+            theta[j] = theta[j] + DT / density[j] / heatCap[j] *
+                    (thermCond[j] / pow(H, 2.0) * AtimesTheta[j] + laserValues[j]);
         }
 
         // enforce Neumann boundary conditions on the top boundary
@@ -427,12 +440,12 @@ void solutionScheme(std::vector< std::vector<int> >& ASparse,
         }
 
         // enforce Neumann boundary conditions on the bottom boundary
-        for (int l = 0; l < bNodes[3].size(); l++){
-            theta[bNodes[3][l]] = theta[bNodes[4][l]];
+        for (int l = 0; l < bNodes[2].size(); l++){
+            theta[bNodes[2][l]] = theta[bNodes[3][l]];
         }
 
         // store temperature results
-        if (t % 100){
+        if (t % 100 == 0){
             temperature.push_back(theta);
         }else{
             continue;
@@ -443,18 +456,49 @@ void solutionScheme(std::vector< std::vector<int> >& ASparse,
     std::cout << "simulation time: " << duration << "s" << std::endl;
 }
 
-void write2file(std::vector< std::vector<double> > &cubeCoord,
-                double density[SIZEA3]){
+void temp2file(std::vector< std::vector<double> >& cubeCoord,
+               std::vector< std::vector<double> >& temperature){
 
+    printTemp.open("/Users/bhopro/Desktop/Berkeley/MSOL/Projects/Voxel/stateTemp.dat");
+    printTemp << "X Y Z ";
+    for (int i = 0; i < temperature.size(); i++){printTemp << "T" << i + 1 << " ";}
+    printTemp << "\n";
+
+    // loop through timesteps
+    for (int i = 0; i < cubeCoord.size(); i++){
+        printTemp << cubeCoord[i][1] << " " << cubeCoord[i][2] << " " << cubeCoord[i][3] << " ";
+        for (int j = 0; j < temperature.size(); j++){
+            printTemp << temperature[i][j] << " ";
+        }
+        printTemp << std::endl;
+    }
+}
+
+void lastTemp2file(std::vector< std::vector<double> >& cubeCoord,
+                   std::vector<double>& temperature){
     // write to file
-    printState.open("/Users/bhopro/Desktop/Berkeley/MSOL/Projects/Voxel/state.dat");
-    printState << "X Y Z D" << std::endl;
+    printDensity.open("/Users/bhopro/Desktop/Berkeley/MSOL/Projects/Voxel/lastTemp.dat");
+    printDensity << "X Y Z T" << std::endl;
 
     for (int i = 0; i < SIZEA3; i++){
-        printState << cubeCoord[i][1] << " " << cubeCoord[i][2] << " " << cubeCoord[i][3]
-                   << " " << density[i] << std::endl;
+        printDensity << cubeCoord[i][1] << " " << cubeCoord[i][2] << " " << cubeCoord[i][3]
+                     << " " << temperature[i] << std::endl;
     }
-    printState.close();
+    printDensity.close();
+}
+void density2file(std::vector< std::vector<double> > &cubeCoord,
+                double density[SIZEA3], double heatCap[SIZEA3],
+                double thermCond[SIZEA3]){
+
+    // write to file
+    printDensity.open("/Users/bhopro/Desktop/Berkeley/MSOL/Projects/Voxel/density.dat");
+    printDensity << "X Y Z D C K" << std::endl;
+
+    for (int i = 0; i < SIZEA3; i++){
+        printDensity << cubeCoord[i][1] << " " << cubeCoord[i][2] << " " << cubeCoord[i][3]
+                   << " " << density[i] << " " << heatCap[i] << " " << thermCond[i] << std::endl;
+    }
+    printDensity.close();
 }
 
 void uniqueVec(std::vector<int> &vec){
@@ -479,7 +523,7 @@ void uniqueVec(std::vector<int> &vec){
 //    std::cout << std::endl;
 }
 
-void print2dVecDouble(std::vector< std::vector<double> > &vec){
+void print2dVecDouble(std::vector< std::vector<double> >& vec){
     for (int i = 0; i < vec.size(); i++){
         for (int j = 0; j < vec[i].size(); j++){
             std::cout << vec[i][j] << " ";
@@ -488,7 +532,7 @@ void print2dVecDouble(std::vector< std::vector<double> > &vec){
     }
 }
 
-void print2dVecInt(std::vector< std::vector<int> > &vec){
+void print2dVecInt(std::vector< std::vector<int> >& vec){
     for (int i=0; i<vec.size(); i++){
         for (int j=0; j<vec[i].size(); j++){
             std::cout << vec[i][j] << " ";
