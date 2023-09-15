@@ -15,20 +15,20 @@
 // particle parameters
 const float THETAW = 300.;                              // |    K    |  temperature at the wall
 const float THETA0 = 300.;                              // |    K    |  initial temperature
-const double I0 = 2. * pow(10, 7);        // |  W/m^2  |  initial laser intensity
+const double I0 = 10.0; //2. * pow(10, 7);        // |  W/m^2  |  initial laser intensity
 const float ABSORB = 25.0;                              // |   1/m   |  absorption constant
 const float LENGTH = 0.05;                              // |    m    |  sample length
-const int NODE = 31;                                    // |   ___   |  number of nodes
+const int NODE = 21;                                    // |   ___   |  number of nodes
 const double INTTHICK = 1.0;                            // |   ---   |  interfacial thickness parameter
 
 // material parameters
-const int KP = 903; //85;                                      // |  W/m-K  |  thermal conductivity of particle
+const int KP = 903; //85;                               // |  W/m-K  |  thermal conductivity of particle
 const int KM = 1;                                       // |  W/m-K  |  thermal conductivity of material
 const int CP = 903;                                     // | J/kg-K  |  heat capacity of particle
 const int CM = 156;                                     // | J/kg-K  |  heat capacity
 const int RHO0P = 2700;                                 // | kg/m^3  |  initial particle density
 const int RHO0M = 1000;                                 // | kg/m^3  |  initial material density
-const double VP = 0.3;                                  // |   ---   |  volume fraction of particles
+const double VP = 0.7;                                  // |   ---   |  volume fraction of particles
 const double RPART = LENGTH / 10.;                      // |    m    |  radius of the particles
 
 // simulation parameters
@@ -174,7 +174,7 @@ int main(){
 }
 
 // Function definitions
-void computeCoord(std::vector<std::vector< double>> &cubeCoord){
+void computeCoord(std::vector< std::vector<double> > &cubeCoord){
     /* structure cubeCoord:
      * cubeCoord = [node, x, y, z]
      */
@@ -276,7 +276,10 @@ void computeAsparse(std::vector< std::vector<int> >& ASparse,
     std::cout << "--- Constructing A sparse array ---" << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
 
+    // Loop through every single node
     for (int i = 0; i < SIZEA3; i++){
+        // Loop through only nodes that
+        // are not on the bottom or top faces
         if (SIZEA2 < i and i < SIZEA3) {
             std::vector<int> tempVec;
             for (int j = 0; j < SIZEA3; j++) {
@@ -337,7 +340,8 @@ void computeParticles(std::vector< std::vector<double> >& cubeCoord,
         // choose a random node to generate particle
         // https://stackoverflow.com/questions/19665818/generate-random-numbers-using-c11-random-library
         std::random_device rd{};
-        std::mt19937 gen{rd()};
+//        std::mt19937 gen{rd()};         // random seed
+        std::mt19937 gen{1};            // set seed
         std::uniform_real_distribution<> dist{0, 1};
         randLoc = dist(gen);          // ensure diameter is positive
 
@@ -414,8 +418,8 @@ void solutionScheme(std::vector< std::vector<int> >& ASparse,
     for (int t = 0; t < SIZETIME; t++){
         // std::cout output information
         averageTemp = std::accumulate(theta.begin(), theta.end(), 0.0) / theta.size();
-        std::cout << "time: " << t + 1 << " / " << SIZETIME;
-        std::cout << " -> average temperature: " << averageTemp << std::endl;
+//        std::cout << "time: " << t + 1 << " / " << SIZETIME;
+//        std::cout << " -> average temperature: " << averageTemp << std::endl;
 
         // coordinate-wise sparse-matrix-vector multiplication
         // http://www.mathcs.emory.edu/~cheung/Courses/561/Syllabus/3-C/sparse.html
@@ -451,6 +455,9 @@ void solutionScheme(std::vector< std::vector<int> >& ASparse,
             continue;
         }
     }
+
+    std::cout << " -> average temperature: " << averageTemp << std::endl;
+
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = (std::chrono::duration_cast<std::chrono::microseconds>(stop - start)).count() / 1e6;
     std::cout << "simulation time: " << duration << "s" << std::endl;
@@ -477,14 +484,14 @@ void temp2file(std::vector< std::vector<double> >& cubeCoord,
 void lastTemp2file(std::vector< std::vector<double> >& cubeCoord,
                    std::vector<double>& temperature){
     // write to file
-    printDensity.open("/Users/bhopro/Desktop/Berkeley/MSOL/Projects/Voxel/lastTemp.dat");
-    printDensity << "X Y Z T" << std::endl;
+    printTemp.open("/Users/bhopro/Desktop/Berkeley/MSOL/Projects/Voxel/lastTemp.dat");
+    printTemp << "X Y Z T" << std::endl;
 
     for (int i = 0; i < SIZEA3; i++){
-        printDensity << cubeCoord[i][1] << " " << cubeCoord[i][2] << " " << cubeCoord[i][3]
+        printTemp << cubeCoord[i][1] << " " << cubeCoord[i][2] << " " << cubeCoord[i][3]
                      << " " << temperature[i] << std::endl;
     }
-    printDensity.close();
+    printTemp.close();
 }
 void density2file(std::vector< std::vector<double> > &cubeCoord,
                 double density[SIZEA3], double heatCap[SIZEA3],

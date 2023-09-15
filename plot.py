@@ -3,6 +3,7 @@ Plot Voxel results
 -Brian Howell
 """
 
+#%%
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
@@ -98,7 +99,7 @@ ax.view_init(30, 120)
 # m = plt.cm.ScalarMappable(cmap=cm.hot)
 # m.set_array(temp)
 # m.set_clim(np.amin(temp), np.amax(temp))
-#
+
 # cbar2 = plt.colorbar(m, boundaries=np.linspace(np.amin(temp), np.amax(temp), 100))
 # cbar2.set_label("Temperature (K)")
 
@@ -108,3 +109,5 @@ plt.savefig("initParticleTemp.png")
 
 
 
+
+# %%

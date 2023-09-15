@@ -3,7 +3,7 @@ Project 5
 ME C201: Modeling and Simulation of Advanced Manufacturing Processes
 Spring Semester 2021
 """
-
+#%%
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.sparse
@@ -117,6 +117,7 @@ def temp_profile(N):
 
     X, Y = np.meshgrid(x, y)
     t = np.arange(0, tf + dt, dt)  # discretize time
+    cnt = 0
     for i in range(len(t)):
         print('average temp: ', np.average(theta))
 
@@ -129,7 +130,7 @@ def temp_profile(N):
         # enforce Neumman BCs
         theta[bottom_boundary] = theta[bottom_boundary_h]
         theta[top_boundary] = theta[top_boundary_h]
-
+        print('max: ', np.amax(theta))
         # for mp4
         # theta_plot = []
         # for i in range(N ** 3 - N ** 2, N ** 3):
@@ -138,8 +139,25 @@ def temp_profile(N):
         # cp = plt.contourf(X, Y, theta_plot, cmap='hot')
         # r_ims.append(cp.collections)
 
+        # FOR GIF
         if i % 100 == 0:
-            temp.append(theta)
+            temp.append(theta)  # required for post simulation analysis
+
+            # Format the frame_number to be zero-padded to five digits
+            cnt_ = f'{cnt:03d}'
+
+            # plot contour of top layer of cube
+            top_cube_temp = []
+            for ii in range(N ** 3 - N ** 2, N ** 3):
+                top_cube_temp.append(temp[-1][ii])
+            top_temp = np.reshape(top_cube_temp, (N, N))
+
+
+            plt.figure(figsize=(15, 15), facecolor='black')
+            cp = plt.contourf(X, Y, top_temp, 15, cmap=cm.hot, vmin=300, vmax=5000)
+            plt.savefig('output_gif/laser_output_top_{}.png'.format(cnt_))
+
+            cnt += 1
 
     # create mp4
     # cbar = plt.colorbar(cp)
@@ -174,18 +192,23 @@ def temp_profile(N):
         top_cube_temp.append(temp[-1][i])
 
     top_temp = np.reshape(top_cube_temp, (N, N))
-    plt.figure()
-    cp = plt.contourf(X, Y, top_temp, 15, cmap=cm.hot, vmin=np.amin(top_temp), vmax=np.amax(top_temp))
-    m = plt.cm.ScalarMappable(cmap=cm.hot)
-    m.set_array(top_temp)
-    m.set_clim(np.amin(top_temp), np.amax(top_temp))
-    plt.ylabel('y(m)')
-    plt.xlabel('x(m)')
-    cbar = plt.colorbar(m, boundaries=np.linspace(np.amin(top_temp), np.amax(top_temp), 100))
-    cbar.set_label("Temperature (K)")
+    # plt.figure()
+    # cp = plt.contourf(X, Y, top_temp, 15, cmap=cm.hot, vmin=np.amin(top_temp), vmax=np.amax(top_temp))
+    # m = plt.cm.ScalarMappable(cmap=cm.hot)
+    # m.set_array(top_temp)
+    # m.set_clim(np.amin(top_temp), np.amax(top_temp))
+    # plt.ylabel('y(m)')
+    # plt.xlabel('x(m)')
+    # cbar = plt.colorbar(m, boundaries=np.linspace(np.amin(top_temp), np.amax(top_temp), 100))
+    # cbar.set_label("Temperature (K)")
 
-    plt.title(r'$\theta$ (z = 0.05) distribution on XY plane')
+    # plt.title(r'$\theta$ (z = 0.05) distribution on XY plane')
+    # plt.savefig('laser_output_top.png')
+    plt.figure(figsize=(15, 15), facecolor='black')
+    cp = plt.contourf(X, Y, top_temp, 15, cmap=cm.hot, vmin=np.amin(top_temp), vmax=np.amax(top_temp))
     plt.savefig('laser_output_top.png')
+
+
 
     # plot contour of top layer of cube
     bottom_cube_temp = []
@@ -238,3 +261,5 @@ f.close()
 
 
 
+
+# %%

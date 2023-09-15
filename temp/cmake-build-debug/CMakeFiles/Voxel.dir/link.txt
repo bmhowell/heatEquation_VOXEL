@@ -1,0 +1,1 @@
+/usr/bin/g++ -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX13.1.sdk -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/Voxel.dir/voxelMain.cpp.o CMakeFiles/Voxel.dir/helpers.cpp.o -o Voxel 
